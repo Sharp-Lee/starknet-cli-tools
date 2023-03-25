@@ -206,8 +206,8 @@ async function performTasks(account, db) {
         await new Promise((resolve) => setTimeout(resolve, 10 * 1000));
     }
     if (code.bytecode.length === 0) {
-        // deploy账户, 循环检查直到成功
-        console.log("deploy account: ", account.account.address, account.addressSalt, account.argentXproxyClassHash, account.constructorCalldata);
+        // 随机等待2-10小时, 防止同时部署
+        await new Promise((resolve) => setTimeout(resolve, randomInt(2 * 60 * 60 * 1000, 10 * 60 * 60 * 1000)));
         const deployAccountPayload = {
             classHash: account.argentXproxyClassHash,
             constructorCalldata: account.constructorCalldata,
@@ -215,6 +215,7 @@ async function performTasks(account, db) {
             addressSalt: account.addressSalt
         };
         let txHash, contractAddress;
+        // deploy账户, 循环检查直到成功
         while (true) {
             try {
                 const { transaction_hash: AXdAth, contract_address: AXcontractFinalAdress } = await account.account.deployAccount( deployAccountPayload );
@@ -246,7 +247,7 @@ async function performTasks(account, db) {
     }
     const shuffledDappAddresses = shuffleArray([...dappsList]);
     for (const dapp of shuffledDappAddresses) {
-        const waitTime = getRandomArbitrary(30 * 60 * 10, 2 * 60 * 60 * 10);
+        const waitTime = getRandomArbitrary(30 * 60 * 1000, 2 * 60 * 60 * 1000);
         await new Promise((resolve) => setTimeout(resolve, waitTime));
         try {
             await interactWithDapp(account.account, dapps[dapp], db);
@@ -254,7 +255,6 @@ async function performTasks(account, db) {
         } catch (error) {
             console.error(`Account ${account.account.address} interaction with DApp ${dapp} failed: `, error);
         }
-        // const waitTime = getRandomArbitrary(30 * 60 * 1000, 2 * 60 * 60 * 1000);
     }
 
     const continuousDapp = dapps["JediSwap"];
@@ -273,7 +273,7 @@ async function performTasks(account, db) {
 async function multiAccountInteraction() {
     try {
         const db = await setupDatabase();
-        const accounts = await generateAccounts(mnemonic, 0, 3, provider);
+        const accounts = await generateAccounts(mnemonic, 0, 15, provider);
         await Promise.all(accounts.map(account => performTasks(account, db)));
     } catch (error) {
         console.error('Error in account interaction: ', error);
