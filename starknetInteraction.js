@@ -1,3 +1,4 @@
+import { BigNumber } from "ethers";
 import { Provider, RpcProvider } from "starknet";
 import path from "path";
 import dotenv from "dotenv";
@@ -104,15 +105,15 @@ async function interactWithDapp(account, dapp, db) {
         }
         if (balanceUSDT === "0") {
             const min = 10000000000000;
-            const max = 1000000000000000;
+            const max = 4900000000000000;
             amountIn = randomInt(min, max);
             path = { type: 'struct', low: dapps["ETH"]["address"], high: dapps["USDT"]["address"] };
         } else {
             // 如果 USDT 余额小于 1000000, 就全部转换
-            if (Number(balanceUSDT) < 1000000) {
-                amountIn = Math.floor(Number(balanceUSDT));
+            if (BigNumber.from(balanceUSDT).lt(1000000)) {
+                amountIn = BigNumber.from(balanceUSDT);
             } else {
-                amountIn = Math.floor(Number(balanceUSDT) * getRandomArbitrary(0.1, 0.9));
+                amountIn = BigNumber.from(balanceUSDT).mul(randomInt(1, 9)).div(10);
             }
             path = { type: 'struct', low: dapps["USDT"]["address"], high: dapps["ETH"]["address"] };
         }
@@ -125,7 +126,7 @@ async function interactWithDapp(account, dapp, db) {
         if (multiCall) {
             await insertAccountData(db, {
                 starknetAddress: account.address,
-                jediSwapTxHash: multiCall.transaction_hash,
+                mySwapTxHash: multiCall.transaction_hash,
             });
             for (let i = 0; i < 5; i++) {
                 try {
@@ -151,15 +152,15 @@ async function interactWithDapp(account, dapp, db) {
         }
         if (balanceUSDT === "0") {
             const min = 10000000000000;
-            const max = 500000000000000;
+            const max = 4900000000000000;
             amountIn = randomInt(min, max);
             path = { type: 'struct', low: dapps["ETH"]["address"], high: dapps["USDT"]["address"] };
         } else {
             // 如果 USDT 余额小于 1000000, 就全部转换
-            if (Number(balanceUSDT) < 1000000) {
-                amountIn = Math.floor(Number(balanceUSDT));
+            if (BigNumber.from(balanceUSDT).lt(1000000)) {
+                amountIn = BigNumber.from(balanceUSDT);
             } else {
-                amountIn = Math.floor(Number(balanceUSDT) * getRandomArbitrary(0.1, 0.9));
+                amountIn = BigNumber.from(balanceUSDT).mul(randomInt(1, 9)).div(10);
             }
             path = { type: 'struct', low: dapps["USDT"]["address"], high: dapps["ETH"]["address"] };
         }
@@ -201,12 +202,16 @@ async function performTasks(account, db) {
             continue;
         }
         console.log(`Account ${account.account.address} has balance: ${balance} ETH.`);
+        if (balance !== "0" && BigNumber.from(balance).lt(BigNumber.from("5000000000000000"))) {
+            console.log(`Account ${account.account.address} has no balance, exiting...`);
+            return;
+        }
         if (balance !== "0") {
             break;
         }
         console.log(`Account ${account.account.address} has no balance, waiting for 1 hour...`);
-        // 每隔 1 小时检查一次
-        await new Promise((resolve) => setTimeout(resolve, 1 * 60 * 60 * 1000));
+        // 每隔 1 分钟检查一次
+        await new Promise((resolve) => setTimeout(resolve, 1 * 60 * 1000));
     }
     // 查询账户是否deploy
     let code;
@@ -217,17 +222,14 @@ async function performTasks(account, db) {
         } catch (error) {
             console.log("getCode error: ", error);
         }
-        // 每隔10秒检查一次
-        await new Promise((resolve) => setTimeout(resolve, 10 * 1000));
+        // 每隔100秒检查一次
+        await new Promise((resolve) => setTimeout(resolve, 100 * 1000));
     }
     if (code.bytecode.length === 0) {
-        // 随机等待2-10小时, 防止同时部署
-        await new Promise((resolve) => setTimeout(resolve, randomInt(2 * 60 * 60 * 1000, 10 * 60 * 60 * 1000)));
-
         let txHash;
         // deploy账户, 循环检查直到成功
+        let count = 0;
         while (true) {
-            let count = 0;
             try {
                 const deployAccountPayload = {
                     classHash: account.argentXproxyClassHash,
@@ -240,7 +242,7 @@ async function performTasks(account, db) {
                 txHash = AXdAth;
             } catch (error) {
                 console.log("deployAccount error: ", error);
-                // 等待10秒再次尝试
+                // 等待100秒再次尝试
                 count++;
                 if (count > 5) {
                     // 如果尝试5次都失败，就退出
@@ -265,12 +267,36 @@ async function performTasks(account, db) {
                     await new Promise(resolve => setTimeout(resolve, randomInt(120000, 600000)));
                 }
             }
+            break;
         }
     }
+
     const shuffledDappAddresses = shuffleArray([...dappsList]);
     for (const dapp of shuffledDappAddresses) {
-        const waitTime = getRandomArbitrary(30 * 60 * 1000, 2 * 60 * 60 * 1000);
-        await new Promise((resolve) => setTimeout(resolve, waitTime));
+        let balance;
+        while (true) {
+            try {
+                balance = await getBalance(account.account.address, dapps["ETH"]["address"], provider);
+            } catch (error) {
+                console.log("getBalance error: ", error);
+                console.log("getBalance error, waiting for 1 hour...");
+                await new Promise((resolve) => setTimeout(resolve, 1 * 60 * 60 * 1000));
+                continue;
+            }
+            console.log(`Account ${account.account.address} has balance: ${balance} ETH.`);
+            if (BigNumber.from(balance).lt(BigNumber.from("5000000000000000"))) {
+                console.log(`Account ${account.account.address} has no balance, exiting...`);
+                return;
+            }
+            break;
+        }
+        if (BigNumber.from(balance).lt(BigNumber.from("10000000000000000"))) {
+            // 如果余额小于0.01ETH, 则只交互JediSwap
+            console.log(`Account ${account.account.address} has balance less than 0.01ETH, only interact with JediSwap.`);
+            break;
+        }
+        // 随机等待20-60分钟, 防止同时交互
+        await new Promise((resolve) => setTimeout(resolve, randomInt(20 * 60 * 1000, 60 * 60 * 1000)));
         try {
             await interactWithDapp(account.account, dapps[dapp], db);
             console.log(`Account ${account.account.address} interacted with DApp ${dapp} successfully.`);
@@ -281,25 +307,26 @@ async function performTasks(account, db) {
 
     const continuousDapp = dapps["JediSwap"];
     while (true) {
-        // 查询账户余额, 小于0.001ETH则退出完成任务
+        // 查询账户余额, 小于0.005ETH则退出完成任务
         let balance;
         try {
             balance = await getBalance(account.account.address, dapps["ETH"]["address"], provider);
         } catch (error) {
             console.log("getBalance error: ", error);
-            console.log("getBalance error, waiting for 1 hour...");
-            await new Promise((resolve) => setTimeout(resolve, 1 * 60 * 60 * 1000));
+            console.log("getBalance error, waiting for 1 minute...");
+            // 等待1分钟再次尝试
+            await new Promise((resolve) => setTimeout(resolve, 1 * 60 * 1000));
             continue;
         }
         console.log(`Continuous interaction: Account ${account.account.address} has balance: ${balance} ETH.`);
         // balance类型为string, 需要转换为number
-        if (Number(balance) < 0.001) {
+        if (BigNumber.from(balance).lt(BigNumber.from("5000000000000000"))) {
             console.log(`Continuous interaction: Account ${account.account.address} has no balance, exiting...`);
             return;
         }
 
-        const waitTime = getRandomArbitrary(5 * 60 * 60 * 1000, 7 * 24 * 60 * 60 * 1000);
-        await new Promise((resolve) => setTimeout(resolve, waitTime));
+        // 随机等待7-30天, 防止同时交互
+        await new Promise((resolve) => setTimeout(resolve, randomInt(7 * 24 * 60 * 60 * 1000, 30 * 24 * 60 * 60 * 1000)));
         try {
             await interactWithDapp(account.account, continuousDapp, db);
             console.log(`Continuous interaction: Account ${account.account.address} interacted with DApp ${continuousDapp} successfully.`);
@@ -317,8 +344,8 @@ async function multiAccountInteraction() {
         const tasks = [];
         for (let i = 0; i < accounts.length; i++) {
             const account = accounts[i];
-            // 设置随机30分钟-2个小时的延时, 并乘以账户索引, 防止同时执行
-            const delay = randomInt(30 * 60 * 1000, 2 * 60 * 60 * 1000) * i;
+            // 设置随机10分钟-2小时延时, 并乘以账户索引, 防止同时执行
+            const delay = randomInt(10 * 60 * 1000, 2 * 60 * 60 * 1000) * i;
 
             // 创建一个异步任务
             const task = new Promise(async (resolve) => {
