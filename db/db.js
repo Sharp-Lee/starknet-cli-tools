@@ -16,7 +16,8 @@ async function setupDatabase() {
             deposit TEXT,
             naming TEXT,
             mint_square TEXT,
-            jedi_swap TEXT
+            jedi_swap TEXT,
+            my_swap TEXT
         );
     `);
 
@@ -32,6 +33,7 @@ async function insertAccountData(db, accountData) {
         namingTxHash,
         mintSquareTxHash,
         jediSwapTxHash,
+        mySwapTxHash,
     } = accountData;
 
     // 将undefined替换为null
@@ -42,6 +44,7 @@ async function insertAccountData(db, accountData) {
     if (namingTxHash === undefined) namingTxHash = null;
     if (mintSquareTxHash === undefined) mintSquareTxHash = null;
     if (jediSwapTxHash === undefined) jediSwapTxHash = null;
+    if (mySwapTxHash === undefined) mySwapTxHash = null;
 
     const existingEntry = await db.get(
         "SELECT * FROM accounts WHERE starknet_address = ?",
@@ -70,7 +73,8 @@ async function insertAccountData(db, accountData) {
                 deposit = COALESCE(?, deposit),
                 naming = COALESCE(?, naming),
                 mint_square = COALESCE(?, mint_square),
-                jedi_swap = ?
+                jedi_swap = ?,
+                my_swap = COALESCE(?, my_swap)
             WHERE starknet_address = ?`,
             [
                 deployTxHash,
@@ -78,6 +82,7 @@ async function insertAccountData(db, accountData) {
                 namingTxHash,
                 mintSquareTxHash,
                 JSON.stringify(jediSwapTxHashes),
+                mySwapTxHash,
                 starknetAddress,
             ]
         );
@@ -87,7 +92,7 @@ async function insertAccountData(db, accountData) {
         const jediSwapTxHashes = jediSwapTxHash ? [jediSwapTxHash] : [];
 
         await db.run(
-            "INSERT INTO accounts (eth_address, starknet_address, deploy, deposit, naming, mint_square, jedi_swap) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO accounts (eth_address, starknet_address, deploy, deposit, naming, mint_square, jedi_swap, my_swap) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
             [
                 ethAddress,
                 starknetAddress,
@@ -96,6 +101,7 @@ async function insertAccountData(db, accountData) {
                 namingTxHash,
                 mintSquareTxHash,
                 JSON.stringify(jediSwapTxHashes),
+                mySwapTxHash,
             ]
         );
         console.log("Inserted new account data:", ethAddress, starknetAddress);

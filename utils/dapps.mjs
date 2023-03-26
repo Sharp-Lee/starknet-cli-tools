@@ -1,4 +1,4 @@
-export const dappsList = ["JediSwap", "Naming", "MintSquare"];
+export const dappsList = ["JediSwap", "Naming", "MintSquare", "MySwap"];
 export const dapps = {
     "ETH": {
         "name": "ETH Token",
@@ -28,6 +28,11 @@ export const dapps = {
     "MintSquare": {
         "name": "MintSquare",
         "address": "0x04a3621276a83251b557a8140e915599ae8e7b6207b067ea701635c0d509801e",
+        // "abi": json.parse(fs.readFileSync("./abi/jediswapabi.json"))
+    },
+    "MySwap": {
+        "name": "MySwap",
+        "address": "0x010884171baf1914edc28d7afb619b40a4051cfae78a094a55d230f19e944a28",
         // "abi": json.parse(fs.readFileSync("./abi/jediswapabi.json"))
     }
 };

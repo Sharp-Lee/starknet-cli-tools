@@ -63,6 +63,7 @@ async function deposit(db, contract, l2Recipient) {
             return;
         }
         // 每一个小时检查一次
+        console.log("Balance:", ethers.utils.formatEther(balance), "waiting...");
         await new Promise(resolve => setTimeout(resolve, 3600000));
     }
     // 获取base fee, 如果大于30Gwei, 则等待
@@ -123,12 +124,26 @@ async function multiAccountInteraction() {
         // 初始化数据库
         const db = await setupDatabase();
         const accounts = await generateAccounts(mnemonic, 0, 15, starkProvider);
-        await Promise.all(contracts.map((contract, index) => {
-            const l2Recipient = accounts[index].account.address;
-            // console.log("L2 Recipient:", l2Recipient);
-            // console.log("ETH Address:", contract.signer.address);
-            return deposit(db, contract, l2Recipient);
-        }));
+
+        // 遍历contracts, 每个30分钟-1小时执行一次deposit
+        for (let i = 0; i < contracts.length; i++) {
+            const contract = contracts[i];
+            const l2Recipient = accounts[i].account.address;
+            console.log();
+            console.log("Account:", i+1);
+            console.log("ETH Address:", contract.signer.address);
+            console.log("L2 Recipient:", l2Recipient);
+            await deposit(db, contract, l2Recipient);
+            if (i === contracts.length - 1) {
+                console.log("All done!");
+            }
+            // 如果不是最后一个, 则等待30分钟-1小时
+            // if ( i < contracts.length - 1 ) {
+            //     await new Promise(resolve => setTimeout(resolve, Math.random() * 3600000 + 1800000));
+            // }else{
+            //     console.log("All done!");
+            // }
+        }
     } catch (error) {
         console.error('Error in account interaction: ', error);
     }
