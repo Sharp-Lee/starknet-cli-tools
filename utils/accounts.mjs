@@ -1,4 +1,4 @@
-import { Wallet, utils } from "ethers";
+import { ethers, Wallet, utils } from "ethers";
 import { Account, ec, stark, hash, uint256, Contract } from "starknet";
 import { getStarkPair } from "./keys.mjs";
 

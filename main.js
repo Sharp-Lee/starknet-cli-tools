@@ -28,7 +28,7 @@ const starkUSDTAddress = process.env.StarkUSDTAddress;
 // 创建stark sequencer provider
 const starkSequencerProvider = new Provider({ sequencer: { baseUrl: starkSequencerUrl } })
 // 创建rpc provider
-const starkRpcProvider = new RpcProvider({ baseUrl: starkRpcUrl });
+const starkRpcProvider = new RpcProvider({ nodeUrl: starkRpcUrl });
 // 创建ethers provider
 const ethRpcProvider = new ethers.providers.JsonRpcProvider(ethRpcUrl);
 
@@ -251,7 +251,7 @@ async function performTasks(starkAccount, ethAccount, db) {
 }
 
 // 生成100个以太坊账户以及对应的starknet账户
-const start = 3, end = 103;
+const start = 8, end = 108;
 const ethAccounts = await generateEthAccounts(mnemonic, start, end, ethRpcProvider);
 const starkAccounts = await generateStarkAccounts(mnemonic, start, end, starkRpcProvider);
 

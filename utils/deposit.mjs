@@ -1,6 +1,6 @@
 import { ethers } from "ethers";
-import { insertAccountData } from "./db/db.js";
-import { depositContractAbi, depositContractAddress } from "./utils/dapps.mjs";
+import { insertAccountData } from "../db/db.js";
+import { depositContractAbi, depositContractAddress } from "./dapps.mjs";
 
 export async function deposit(db, ethAccount, l2Recipient) {
     // 1.1 查询eth账户余额

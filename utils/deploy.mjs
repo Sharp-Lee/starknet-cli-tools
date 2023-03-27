@@ -1,5 +1,5 @@
-import { insertAccountData } from "./db/db.js";
-import { randomInt } from "./utils/utils.mjs";
+import { insertAccountData } from "../db/db.js";
+import { randomInt } from "./utils.mjs";
 export async function deploy(db, starkAccount, starkRpcProvider) {
     // 1 查询starknet账户 Class
     try {
