@@ -21,6 +21,14 @@ async function setupDatabase() {
         );
     `);
 
+    // 创建 image_names 表
+    await db.exec(`
+        CREATE TABLE IF NOT EXISTS image_names (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            image_name_list TEXT
+        );
+    `);
+
     return db;
 }
 
@@ -108,4 +116,44 @@ async function insertAccountData(db, accountData) {
     }
 }
 
-export { setupDatabase, insertAccountData };
+async function insertImageNames(db, imageNames) {
+    const imageNameList = JSON.stringify(imageNames);
+
+    await db.run(
+        "INSERT INTO image_names (image_name_list) VALUES (?)",
+        [imageNameList]
+    );
+
+    console.log("Inserted image names:", imageNames);
+}
+
+async function getAndRemoveFirstImageName(db) {
+    // 获取存储的图片名字数组
+    const result = await db.get("SELECT * FROM image_names ORDER BY id LIMIT 1");
+    if (!result) {
+        console.log("No image names available.");
+        return null;
+    }
+
+    // 将 JSON 字符串解析为数组
+    const imageNames = JSON.parse(result.image_name_list);
+
+    // 获取并移除数组中的第一个图片名字
+    const firstImageName = imageNames.shift();
+
+    // 更新数据库中的图片名字数组
+    if (imageNames.length > 0) {
+        await db.run(
+            "UPDATE image_names SET image_name_list = ? WHERE id = ?",
+            [JSON.stringify(imageNames), result.id]
+        );
+    } else {
+        // 如果数组为空，删除该记录
+        await db.run("DELETE FROM image_names WHERE id = ?", [result.id]);
+    }
+
+    console.log("Retrieved and removed first image name:", firstImageName);
+    return firstImageName;
+}
+
+export { setupDatabase, insertAccountData , insertImageNames, getAndRemoveFirstImageName};

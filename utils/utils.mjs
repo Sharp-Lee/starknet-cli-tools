@@ -66,4 +66,28 @@ export function stringToHex(str) {
     const hex = buffer.toString('hex');
     // 添加前缀0x,并返回
     return '0x' + hex;
-  }
+}
+
+export function setTimeout64(callback, delay) {
+    const maxDelay = 2147483647;
+    if (delay > maxDelay) {
+        const firstDelay = maxDelay;
+        const remainingDelay = delay - maxDelay;
+        return setTimeout(() => setTimeout64(callback, remainingDelay), firstDelay);
+    } else {
+        return setTimeout(callback, delay);
+    }
+}
+
+export async function removeImageName(db, imageName) {
+    // 在删除之前检查图片名称是否存在
+    const imageEntry = await db.get("SELECT * FROM images WHERE image_name = ?", [imageName]);
+
+    if (!imageEntry) {
+        console.error("Image name not found:", imageName);
+        return;
+    }
+
+    await db.run("DELETE FROM images WHERE image_name = ?", [imageName]);
+    console.log("Removed image name:", imageName);
+}

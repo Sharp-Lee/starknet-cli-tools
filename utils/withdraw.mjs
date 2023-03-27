@@ -1,8 +1,7 @@
 import { stark } from "starknet";
 import { dapps } from "./dapps.mjs";
-import { insertAccountData } from "../db/db.js";
 
-export async function executeMySwapMulticall(db, account, amountIn, path) {
+export async function executeWithdrawMulticall(account, amountIn, path) {
     const multiCall = await account.execute(
         [
             {
@@ -25,11 +24,5 @@ export async function executeMySwapMulticall(db, account, amountIn, path) {
             }
         ]
     )
-
-    await insertAccountData(db, {
-        starknetAddress: account.address,
-        mySwapTxHash: multiCall.transaction_hash,
-    });
-    
-    return multiCall.transaction_hash;
+    return multiCall;
 }

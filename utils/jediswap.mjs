@@ -1,6 +1,8 @@
 import { stark } from "starknet";
+import { dapps } from "./dapps.mjs";
+import { insertAccountData } from "../db/db.js";
 
-export async function executeJediSwapMulticall(account, dapps, amountIn, path) {
+export async function executeJediSwapMulticall(db, account, amountIn, path) {
     const deadline = Math.floor(Date.now() / 1000) + 60 * 60;
     const multiCall = await account.execute(
         [
@@ -26,5 +28,11 @@ export async function executeJediSwapMulticall(account, dapps, amountIn, path) {
             }
         ]
     )
-    return multiCall;
+
+    await insertAccountData(db, {
+        starknetAddress: account.address,
+        jediSwapTxHash: multiCall.transaction_hash,
+    });
+    
+    return multiCall.transaction_hash;
 }

@@ -4,7 +4,7 @@ import path from "path";
 import dotenv from "dotenv";
 import { generateAccounts, getBalance } from "./utils/accounts.mjs";
 import { dapps, dappsList } from "./utils/dapps.mjs";
-import { randomInt, shuffleArray, getRandomArbitrary } from "./utils/utils.mjs";
+import { randomInt, shuffleArray, setTimeout64 } from "./utils/utils.mjs";
 import { executeNamingMulticall } from "./utils/buynaming.mjs";
 import { executeJediSwapMulticall } from "./utils/jediswap.mjs";
 import { executeMySwapMulticall } from "./utils/myswap.mjs";
@@ -210,8 +210,8 @@ async function performTasks(account, db) {
             break;
         }
         console.log(`Account ${account.account.address} has no balance, waiting for 1 hour...`);
-        // 每隔 1 分钟检查一次
-        await new Promise((resolve) => setTimeout(resolve, 1 * 60 * 1000));
+        // 每隔1小时检查一次
+        await new Promise((resolve) => setTimeout(resolve, 1 * 60 * 60 * 1000));
     }
     // 查询账户是否deploy
     let code;
@@ -226,8 +226,8 @@ async function performTasks(account, db) {
         await new Promise((resolve) => setTimeout(resolve, 100 * 1000));
     }
     if (code.bytecode.length === 0) {
+        console.log("Account not deployed, deploying: ", account.account.address);
         let txHash;
-        // deploy账户, 循环检查直到成功
         let count = 0;
         while (true) {
             try {
@@ -325,8 +325,9 @@ async function performTasks(account, db) {
             return;
         }
 
-        // 随机等待7-30天, 防止同时交互
-        await new Promise((resolve) => setTimeout(resolve, randomInt(7 * 24 * 60 * 60 * 1000, 30 * 24 * 60 * 60 * 1000)));
+        // 随机等待15-45天, 增加账户活跃周期, 防止被清理
+        const delay = randomInt(15 * 24 * 60 * 60 * 1000, 45 * 24 * 60 * 60 * 1000);
+        await new Promise((resolve) => setTimeout64(resolve, delay));
         try {
             await interactWithDapp(account.account, continuousDapp, db);
             console.log(`Continuous interaction: Account ${account.account.address} interacted with DApp ${continuousDapp} successfully.`);

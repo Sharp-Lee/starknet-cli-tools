@@ -13,7 +13,7 @@ const hdNode = utils.HDNode.fromMnemonic(mnemonic);
 console.log('HD Wallet Address: ', hdNode.address);
 
 // 生成前100个派生地址
-for (let i = 3; i < 103; i++) {
+for (let i = 3; i < 18; i++) {
   const wallet = hdNode.derivePath(`m/44'/60'/0'/0/${i}`);
   console.log(`Address ${i-2}: `, wallet.address);
   console.log();
