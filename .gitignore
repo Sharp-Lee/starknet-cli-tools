@@ -14,3 +14,5 @@ logs
 .vscode/
 *.sw*
 
+# 忽略数据库文件
+*.db
