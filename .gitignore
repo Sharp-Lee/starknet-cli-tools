@@ -6,6 +6,10 @@ logs
 *.log
 *.out
 
+# 忽略图片
+*.png
+*.jpg
+
 # 忽略.env文件
 .env
 

@@ -9,11 +9,12 @@ export async function deposit(db, ethAccount, l2Recipient) {
         try {
             ethBalance = await ethAccount.getBalance();
             if (ethBalance.eq(0)) {
-                console.log("Eth balance is 0, wait for 1 hour");
-                await new Promise((resolve) => setTimeout(resolve, 60 * 60 * 1000));
+                // 打印 eth account address 和 eth balance
+                console.log("address: ", ethAccount.address, ", ethBalance: ", ethBalance.toString());
+                await new Promise((resolve) => setTimeout(resolve, 60 * 1000));
                 continue;
             } else {
-                console.log("Eth balance is not 0, go to next step");
+                console.log("address: ", ethAccount.address, ", ethBalance: ", ethBalance.toString(), ", go to next step");
                 break;
             }
         } catch (error) {
@@ -45,17 +46,28 @@ export async function deposit(db, ethAccount, l2Recipient) {
     }
 
     // 1.3 构建deposit交易参数
-    // param1: starknet账户地址
+    // param1: 跨链金额, 0.022-0.025之间的随机数
+    const ethToSend = ethers.utils.parseEther((Math.random() * 0.003 + 0.022).toFixed(8));
+    // param2: starknet账户地址
     const l2RecipientBN = ethers.BigNumber.from(l2Recipient);
-    // param2: 跨链金额, 总金额减去随机0.004500到0.010000的ETH
-    const ethToSend = ethBalance.sub(ethers.utils.parseEther((Math.random() * 0.0055 + 0.0045).toFixed(5)));
+
+    console.log("l2RecipientBN: ", l2RecipientBN.toString());
+    console.log("ethToSend: ", ethToSend.toString());
 
     // 1.4 执行deposit交易
     let tx;
     while (true) {
         try {
             const depositContract = new ethers.Contract(depositContractAddress, depositContractAbi, ethAccount);
+            // 设置max priority fee per gas, max fee per gas and gas limit
+            // const txParams = {
+                // maxPriorityFeePerGas: ethers.utils.parseUnits("2.5", "gwei"),
+                // maxFeePerGas: ethers.utils.parseUnits("150", "gwei"),
+                // gasLimit: 180000,
+            // };
+            // tx = await depositContract.deposit(ethToSend.sub(1), l2RecipientBN, { value: ethToSend, ...txParams });
             tx = await depositContract.deposit(l2RecipientBN, { value: ethToSend });
+            console.log("address: ", ethAccount.address, ", deposit txHash: ", tx.hash);
             break;
         } catch (error) {
             console.log("Error in deposit:", error);
@@ -69,6 +81,7 @@ export async function deposit(db, ethAccount, l2Recipient) {
     let receipt;
     while (true) {
         try {
+            console.log("wait depost txHash: ", tx.hash);
             receipt = await tx.wait();
             await insertAccountData(db, {
                 starknetAddress: l2Recipient,

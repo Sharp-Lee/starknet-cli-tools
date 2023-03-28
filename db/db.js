@@ -12,12 +12,12 @@ async function setupDatabase() {
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             eth_address TEXT,
             starknet_address TEXT,
-            deploy TEXT,
             deposit TEXT,
+            deploy TEXT,
             naming TEXT,
             mint_square TEXT,
-            jedi_swap TEXT,
-            my_swap TEXT
+            my_swap TEXT,
+            jedi_swap TEXT
         );
     `);
 
@@ -36,23 +36,23 @@ async function insertAccountData(db, accountData) {
     let {
         ethAddress,
         starknetAddress,
-        deployTxHash,
         depositTxHash,
+        deployTxHash,
         namingTxHash,
         mintSquareTxHash,
-        jediSwapTxHash,
         mySwapTxHash,
+        jediSwapTxHash,
     } = accountData;
 
     // 将undefined替换为null
     if (ethAddress === undefined) ethAddress = null;
     if (starknetAddress === undefined) starknetAddress = null;
-    if (deployTxHash === undefined) deployTxHash = null;
     if (depositTxHash === undefined) depositTxHash = null;
+    if (deployTxHash === undefined) deployTxHash = null;
     if (namingTxHash === undefined) namingTxHash = null;
     if (mintSquareTxHash === undefined) mintSquareTxHash = null;
-    if (jediSwapTxHash === undefined) jediSwapTxHash = null;
     if (mySwapTxHash === undefined) mySwapTxHash = null;
+    if (jediSwapTxHash === undefined) jediSwapTxHash = null;
 
     const existingEntry = await db.get(
         "SELECT * FROM accounts WHERE starknet_address = ?",
@@ -77,20 +77,20 @@ async function insertAccountData(db, accountData) {
 
         await db.run(
             `UPDATE accounts SET
-                deploy = COALESCE(?, deploy),
                 deposit = COALESCE(?, deposit),
+                deploy = COALESCE(?, deploy),
                 naming = COALESCE(?, naming),
                 mint_square = COALESCE(?, mint_square),
-                jedi_swap = ?,
-                my_swap = COALESCE(?, my_swap)
+                my_swap = COALESCE(?, my_swap),
+                jedi_swap = ?
             WHERE starknet_address = ?`,
             [
-                deployTxHash,
                 depositTxHash,
+                deployTxHash,
                 namingTxHash,
                 mintSquareTxHash,
-                JSON.stringify(jediSwapTxHashes),
                 mySwapTxHash,
+                JSON.stringify(jediSwapTxHashes),
                 starknetAddress,
             ]
         );
@@ -100,16 +100,16 @@ async function insertAccountData(db, accountData) {
         const jediSwapTxHashes = jediSwapTxHash ? [jediSwapTxHash] : [];
 
         await db.run(
-            "INSERT INTO accounts (eth_address, starknet_address, deploy, deposit, naming, mint_square, jedi_swap, my_swap) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO accounts (eth_address, starknet_address, deposit, deploy, naming, mint_square, my_swap, jedi_swap) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
             [
                 ethAddress,
                 starknetAddress,
-                deployTxHash,
                 depositTxHash,
+                deployTxHash,
                 namingTxHash,
                 mintSquareTxHash,
-                JSON.stringify(jediSwapTxHashes),
                 mySwapTxHash,
+                JSON.stringify(jediSwapTxHashes),
             ]
         );
         console.log("Inserted new account data:", ethAddress, starknetAddress);

@@ -1,13 +1,8 @@
 import { stark } from "starknet";
 import { randomInt, randomString, from_special_38_to_decimal } from "./utils.mjs";
 import { dapps } from "./dapps.mjs";
-import { insertAccountData } from "../db/db.js";
 
-export async function executeNamingMulticall(db, account) {
-    const accountData = await db.get("SELECT * FROM accounts WHERE starknet_address = ?", [account.address]);
-    if (accountData && accountData.naming) {
-        return null;
-    }
+export async function executeNamingMulticall(account) {
     const min = 10000000000;
     const max = 999999999999;
     const starknetid = randomInt(min, max);
@@ -56,11 +51,7 @@ export async function executeNamingMulticall(db, account) {
         ]
     )
 
-    console.log("buy domain: ", randStr);
-    await insertAccountData(db, {
-        starknetAddress: account.address,
-        namingTxHash: multiCall.transaction_hash,
-    });
-
+    console.log("address: ", account.address, ", buying ", randStr, " naimg, ", "tx: ", multiCall.transaction_hash);
+    
     return multiCall.transaction_hash;
 }

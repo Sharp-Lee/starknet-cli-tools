@@ -11,7 +11,8 @@ import { executeNamingMulticall } from "./utils/buynaming.mjs";
 import { executeJediSwapMulticall } from "./utils/jediswap.mjs";
 import { executeMySwapMulticall } from "./utils/myswap.mjs";
 import { executeMintSquare } from "./utils/mintsquare.mjs";
-import { setupDatabase, getAndRemoveFirstImageName } from "./db/db.js";
+import { setupDatabase, insertAccountData, getAndRemoveFirstImageName } from "./db/db.js";
+import { checkImages } from "./utils/insertImages.mjs";
 
 dotenv.config();
 
@@ -34,34 +35,87 @@ const ethRpcProvider = new ethers.providers.JsonRpcProvider(ethRpcUrl);
 
 
 // 交互函数
-async function interact(db, account, dapp) {
-    let accountData, callHash;
-    let balanceUSDT, amountIn, pair_path;
+async function interact(account, dapp) {
+    let callHash, balanceUSDT, amountIn, pair_path;
+    const db = await setupDatabase();
+    let accountData = await db.get("SELECT * FROM accounts WHERE starknet_address = ?", [account.address]);
     switch (dapp["name"]) {
         case "Naming":
-            console.log("interact with Naming");
+            console.log("address: ", account.address, " interact with Naming");
             try {
-                callHash = await executeNamingMulticall(db, account);
-                console.log("Execute naiming success:", callHash);
+                if (accountData && accountData.naming) {
+                    db.close();
+                    return null;
+                }
+                callHash = await executeNamingMulticall(account);
+                if (callHash) {
+                    for (let i = 0; i < 3; i++) {
+                        try {
+                            console.log("Wait for transaction:", callHash);
+                            await starkRpcProvider.waitForTransaction(callHash);
+                            await insertAccountData(db, {
+                                starknetAddress: account.address,
+                                namingTxHash: callHash,
+                            });
+                            db.close();
+                            console.log("address:", account.address, "Execute naiming success:", callHash);
+                            return callHash;
+                        } catch (error) {
+                            console.log("Wait for transaction failed:", error);
+                        }
+                        // 随机等待1-3分钟, 等待交易确认
+                        await new Promise(resolve => setTimeout(resolve, randomInt(60000, 180000)));
+                    }
+                }
+                db.close();
+                console.log("address:", account.address, "Execute naiming failed:", callHash);
+                return null;
             } catch (error) {
                 console.log("Execute naiming failed:", error);
+                db.close();
                 return;
             }
-            break;
         case "MintSquare":
+            console.log("address: ", account.address, " interact with MintSquare");
             try {
+                if (accountData && accountData.mint_square) {
+                    db.close();
+                    return null;
+                }
                 const imagePath = path.join(".", "images");
                 const imageName = await getAndRemoveFirstImageName(db);
-                callHash = await executeMintSquare(db, account, imagePath, imageName);
-                console.log("Execute mintsquare success:", callHash);
+                callHash = await executeMintSquare(account, imagePath, imageName);
+                if (callHash) {
+                    for (let i = 0; i < 3; i++) {
+                        try {
+                            console.log("Wait for transaction:", callHash);
+                            await starkRpcProvider.waitForTransaction(callHash);
+                            await insertAccountData(db, {
+                                starknetAddress: account.address,
+                                mintSquareTxHash: callHash,
+                            })
+                            db.close();
+                            console.log("address:", account.address, "Execute mintsquare success:", callHash);
+                            return callHash;
+                        } catch (error) {
+                            console.log("Wait for transaction failed:", error);
+                        }
+                        // 随机等待1-3分钟, 等待交易确认
+                        await new Promise(resolve => setTimeout(resolve, randomInt(60000, 180000)));
+                    }
+                }
+                db.close();
+                console.log("address:", account.address, "Execute mintsquare failed:", callHash);
+                return null;
             } catch (error) {
+                db.close();
                 console.log("Execute mintsquare failed:", error);
                 return;
             }
-            break;
         case "MySwap":
-            accountData = await db.get("SELECT * FROM accounts WHERE starknet_address = ?", [account.address]);
+            console.log("address: ", account.address, " interact with MySwap");
             if (accountData && accountData.my_swap) {
+                db.close();
                 return null;
             }
             try {
@@ -69,6 +123,7 @@ async function interact(db, account, dapp) {
                 balanceUSDT = await getStarkERC20TokenBalance(account.address, starkUSDTAddress, starkRpcProvider);
             } catch (error) {
                 console.log("Get USDT balance failed:", error);
+                db.close();
                 return;
             }
             // 如果余额为0
@@ -88,23 +143,42 @@ async function interact(db, account, dapp) {
                 pair_path = { type: 'struct', low: dapps["USDT"]["address"], high: dapps["ETH"]["address"] };
             }
             try {
-                callHash = await executeMySwapMulticall(db, account, amountIn, pair_path);
-                console.log("Execute myswap success:", callHash);
+                callHash = await executeMySwapMulticall(account, amountIn, pair_path);
+                if (callHash) {
+                    for (let i = 0; i < 3; i++) {
+                        try {
+                            console.log("Wait for transaction:", callHash);
+                            await starkRpcProvider.waitForTransaction(callHash);
+                            await insertAccountData(db, {
+                                starknetAddress: account.address,
+                                mySwapTxHash: callHash,
+                            });
+                            db.close();
+                            console.log("address:", account.address, "Execute myswap success:", callHash);
+                            return callHash;
+                        } catch (error) {
+                            console.log("Wait for transaction failed:", error);
+                        }
+                        // 随机等待1-3分钟, 等待交易确认
+                        await new Promise(resolve => setTimeout(resolve, randomInt(60000, 180000)));
+                    }
+                }
+                db.close();
+                console.log("address:", account.address, "Execute myswap failed:", callHash);
+                return null;
             } catch (error) {
                 console.log("Execute myswap failed:", error);
+                db.close();
                 return;
             }
-            break;
         case "JediSwap":
-            accountData = await db.get("SELECT * FROM accounts WHERE starknet_address = ?", [account.address]);
-            if (accountData && accountData.jedi_swap) {
-                return null;
-            }
+            console.log("address: ", account.address, " interact with JediSwap");
             try {
                 // 查询starknet账户的USDT余额
                 balanceUSDT = await getStarkERC20TokenBalance(account.address, starkUSDTAddress, starkRpcProvider);
             } catch (error) {
                 console.log("Get USDT balance failed:", error);
+                db.close();
                 return;
             }
             // 如果余额为0
@@ -124,35 +198,41 @@ async function interact(db, account, dapp) {
                 pair_path = { type: 'struct', low: dapps["USDT"]["address"], high: dapps["ETH"]["address"] };
             }
             try {
-                callHash = await executeJediSwapMulticall(db, account, amountIn, pair_path);
-                console.log("Execute jediswap success:", callHash);
+                callHash = await executeJediSwapMulticall(account, amountIn, pair_path);
+                if (callHash) {
+                    for (let i = 0; i < 3; i++) {
+                        try {
+                            console.log("Wait for transaction:", callHash);
+                            await starkRpcProvider.waitForTransaction(callHash);
+                            await insertAccountData(db, {
+                                starknetAddress: account.address,
+                                jediSwapTxHash: callHash,
+                            });
+                            db.close();
+                            console.log("Execute jediswap success:", callHash);
+                            return callHash;
+                        } catch (error) {
+                            console.log("Wait for transaction failed:", error);
+                        }
+                        // 随机等待1-3分钟, 等待交易确认
+                        await new Promise(resolve => setTimeout(resolve, randomInt(60000, 180000)));
+                    }
+                }
+                db.close();
+                return null;
             } catch (error) {
                 console.log("Execute jediswap failed:", error);
+                db.close();
                 return;
             }
-            break;
         default:
             break;
     }
-    if (callHash) {
-        for (let i = 0; i < 5; i++) {
-            try {
-                await starkRpcProvider.waitForTransaction(callHash);
-                console.log("Wait for transaction success:", callHash);
-                break;
-            } catch (error) {
-                console.log("Wait for transaction failed:", error);
-            }
-            // 随机等待2-10分钟, 等待交易确认
-            await new Promise(resolve => setTimeout(resolve, randomInt(120000, 600000)));
-        }
-        return callHash;
-    }
-    return null;
 }
 
 // perform tasks
-async function performTasks(starkAccount, ethAccount, db) {
+async function performTasks(starkAccount, ethAccount) {
+    const db = await setupDatabase();
     // 查询数据库表accounts中是否有starkAccount和ethAccount的数据, 如果没有则插入
     let accountData = await db.get("SELECT * FROM accounts WHERE starknet_address = ? AND eth_address = ?", [starkAccount.account.address, ethAccount.address]);
     if (accountData === undefined) {
@@ -160,14 +240,17 @@ async function performTasks(starkAccount, ethAccount, db) {
         accountData = await db.get("SELECT * FROM accounts WHERE starknet_address = ? AND eth_address = ?", [starkAccount.account.address, ethAccount.address]);
     }
     // 1. deposit eth
-    const depositTxHash = accountData ? accountData.deposit : null;
+    let depositTxHash = accountData ? accountData.deposit : null;
     if (!depositTxHash) {
         try {
             depositTxHash = await deposit(db, ethAccount, starkAccount.account.address);
         } catch (error) {
             console.log("Error in deposit:", error);
+            db.close();
             return;
         }
+    } else {
+        console.log("Deposit already done");
     }
     // 2. 循环获取starknet账户的余额, 如果余额为0, 则等待一段时间后再次获取
     let starkBalance = "0";
@@ -175,8 +258,9 @@ async function performTasks(starkAccount, ethAccount, db) {
         try {
             starkBalance = await getStarkERC20TokenBalance(starkAccount.account.address, starkETHAddress, starkRpcProvider);
             if (starkBalance === "0") {
-                // 等待10分钟后再次获取
-                await new Promise((resolve) => setTimeout(resolve, 10 * 60 * 1000));
+                // 等待1分钟后再次获取
+                console.log("Stark address: ", starkAccount.account.address, "balance is 0, wait for 1 minute...");
+                await new Promise((resolve) => setTimeout(resolve, 1 * 60 * 1000));
             }
         } catch (error) {
             console.log("Error in getStarkERC20TokenBalance:", error);
@@ -186,13 +270,27 @@ async function performTasks(starkAccount, ethAccount, db) {
         }
     }
     // 3. deploy starknet account
-    const deployTxHash = accountData ? accountData.deploy : null;
+    let deployTxHash = accountData ? accountData.deploy : null;
     if (!deployTxHash) {
         try {
             deployTxHash = await deploy(db, starkAccount, starkRpcProvider);
+            if (deployTxHash === 2) {
+                console.log("Deploy failed, stark address: ", starkAccount.account.address);
+                db.close();
+                return;
+            }
         } catch (error) {
             console.log("Error in deploy:", error);
+            db.close();
             return;
+        }
+    }
+    // 4. 删除已mint的图片
+    if (accountData && accountData.mint_square) {
+        try {
+            await getAndRemoveFirstImageName(db);
+        } catch (error) {
+            console.log("Error in getAndRemoveFirstImageName:", error);
         }
     }
     // 4. 与dapps交互
@@ -202,18 +300,19 @@ async function performTasks(starkAccount, ethAccount, db) {
         for (const dapp of shuffledDappAddresses) {
             let interacted = false;
             try {
-                interacted = await interact(db, starkAccount.account, dapps[dapp]);
+                interacted = await interact(starkAccount.account, dapps[dapp]);
             } catch (error) {
                 console.log("Error in interact:", error);
                 continue;
             }
-            // 如果是本次交互的, 随机等待30分钟-2小时
+            // 如果是本次交互的, 随机等待30-60分钟
             if (interacted) {
-                await new Promise((resolve) => setTimeout(resolve, randomInt(30 * 60 * 1000, 2 * 60 * 60 * 1000)));
+                await new Promise((resolve) => setTimeout(resolve, randomInt(30 * 60 * 1000, 60 * 60 * 1000)));
             }
         }
         accountData = await db.get("SELECT * FROM accounts WHERE starknet_address = ? AND eth_address = ?", [starkAccount.account.address, ethAccount.address]);
     }
+    db.close();
     // 5. 长期交互指定的dapp jedi_swap
     const jediSwapDapp = dapps["JediSwap"];
     while (true) {
@@ -237,14 +336,15 @@ async function performTasks(starkAccount, ethAccount, db) {
         const balance = ethers.utils.parseUnits(starkBalance, "wei");
         if (balance.lt(ethers.utils.parseEther("0.005"))) {
             // 完成交互, 退出
+            console.log("Stark address: ", starkAccount.account.address, " done all interactions");
             return;
         }
         try {
-            await interact(db, starkAccount.account, jediSwapDapp);
-            // 使用setTimeout64随机等待15-45天, 再次交互
+            await interact(starkAccount.account, jediSwapDapp);
         } catch (error) {
             console.log("Error in interact:", error);
         }
+        // 使用setTimeout64随机等待15-45天, 再次交互
         const delay = randomInt(15 * 24 * 60 * 60 * 1000, 45 * 24 * 60 * 60 * 1000);
         await new Promise((resolve) => setTimeout64(resolve, delay));
     }
@@ -259,23 +359,24 @@ const starkAccounts = await generateStarkAccounts(mnemonic, start, end, starkRpc
 async function main() {
     // 程序开始时间
     console.log("Start time:", new Date().toLocaleString());
-    const db = setupDatabase();
     const tasks = [];
     try {
+        // 查询image_names表中是否有数据, 如果没有, 则插入数据
+        await checkImages(start, end);
         // 一个starknet账户为一个用户, 遍历所有的starknet账户, 模拟用户交互
         let lastDelay = 0;
         for (let i = 0; i < starkAccounts.length; i++) {
             const starkAccount = starkAccounts[i];
             const ethAccount = ethAccounts[i];
 
-            // 模拟用户使用时间的随机性, 每间隔30分钟到2小时有一个新用户进入交互
-            const delay = randomInt(30 * 60 * 1000, 2 * 60 * 60 * 1000) + lastDelay;
+            // 模拟用户使用时间的随机性, 每间隔30分钟-1小时有一个新用户进入交互
+            const delay = randomInt(30 * 60 * 1000, 60 * 60 * 1000) + lastDelay;
             lastDelay = delay;
             const task = new Promise(async (resolve) => {
                 try {
                     // 等待一段时间后, 模拟用户进入交互
                     await new Promise((resolve) => setTimeout(resolve, delay));
-                    await performTasks(starkAccount, ethAccount, db);
+                    await performTasks(starkAccount, ethAccount);
                     resolve();
                 } catch (error) {
                     console.log("Error in performTasks:", error);
