@@ -190,120 +190,120 @@ async function interactWithDapp(account, dapp, db) {
 }
 
 async function performTasks(account, db) {
-    // 循环判断账户是否有余额
-    while (true) {
-        let balance;
-        try {
-            balance = await getBalance(account.account.address, dapps["ETH"]["address"], provider);
-        } catch (error) {
-            console.log("getBalance error: ", error);
-            console.log("getBalance error, waiting for 1 hour...");
-            await new Promise((resolve) => setTimeout(resolve, 1 * 60 * 60 * 1000));
-            continue;
-        }
-        console.log(`Account ${account.account.address} has balance: ${balance} ETH.`);
-        if (balance !== "0" && BigNumber.from(balance).lt(BigNumber.from("5000000000000000"))) {
-            console.log(`Account ${account.account.address} has no balance, exiting...`);
-            return;
-        }
-        if (balance !== "0") {
-            break;
-        }
-        console.log(`Account ${account.account.address} has no balance, waiting for 1 hour...`);
-        // 每隔 1 分钟检查一次
-        await new Promise((resolve) => setTimeout(resolve, 1 * 60 * 1000));
-    }
-    // 查询账户是否deploy
-    let code;
-    while (true) {
-        try {
-            code = await sequencerProvider.getCode(account.account.address)
-            break;
-        } catch (error) {
-            console.log("getCode error: ", error);
-        }
-        // 每隔100秒检查一次
-        await new Promise((resolve) => setTimeout(resolve, 100 * 1000));
-    }
-    if (code.bytecode.length === 0) {
-        let txHash;
-        // deploy账户, 循环检查直到成功
-        let count = 0;
-        while (true) {
-            try {
-                const deployAccountPayload = {
-                    classHash: account.argentXproxyClassHash,
-                    constructorCalldata: account.constructorCalldata,
-                    contractAddress: account.account.address,
-                    addressSalt: account.addressSalt
-                };
-                const { transaction_hash: AXdAth, contract_address: AXcontractFinalAdress } = await account.account.deployAccount(deployAccountPayload);
-                console.log("deployAccount success, txHash: ", AXdAth, ", contract_address: ", AXcontractFinalAdress);
-                txHash = AXdAth;
-            } catch (error) {
-                console.log("deployAccount error: ", error);
-                // 等待100秒再次尝试
-                count++;
-                if (count > 5) {
-                    // 如果尝试5次都失败，就退出
-                    return;
-                }
-                await new Promise((resolve) => setTimeout(resolve, 100 * 1000));
-                continue;
-            }
-            if (txHash) {
-                await insertAccountData(db, {
-                    starknetAddress: account.account.address,
-                    deployTxHash: txHash,
-                });
-                for (let i = 0; i < 5; i++) {
-                    try {
-                        await provider.waitForTransaction(txHash);
-                        break;
-                    } catch (error) {
-                        console.log("Transaction ", txHash, " failed, check for more details.");
-                    }
-                    // 随机等待等待2-10分钟，再次查询交易状态
-                    await new Promise(resolve => setTimeout(resolve, randomInt(120000, 600000)));
-                }
-            }
-            break;
-        }
-    }
+    // // 循环判断账户是否有余额
+    // while (true) {
+    //     let balance;
+    //     try {
+    //         balance = await getBalance(account.account.address, dapps["ETH"]["address"], provider);
+    //     } catch (error) {
+    //         console.log("getBalance error: ", error);
+    //         console.log("getBalance error, waiting for 1 hour...");
+    //         await new Promise((resolve) => setTimeout(resolve, 1 * 60 * 60 * 1000));
+    //         continue;
+    //     }
+    //     console.log(`Account ${account.account.address} has balance: ${balance} ETH.`);
+    //     if (balance !== "0" && BigNumber.from(balance).lt(BigNumber.from("5000000000000000"))) {
+    //         console.log(`Account ${account.account.address} has no balance, exiting...`);
+    //         return;
+    //     }
+    //     if (balance !== "0") {
+    //         break;
+    //     }
+    //     console.log(`Account ${account.account.address} has no balance, waiting for 1 hour...`);
+    //     // 每隔 1 分钟检查一次
+    //     await new Promise((resolve) => setTimeout(resolve, 1 * 60 * 1000));
+    // }
+    // // 查询账户是否deploy
+    // let code;
+    // while (true) {
+    //     try {
+    //         code = await sequencerProvider.getCode(account.account.address)
+    //         break;
+    //     } catch (error) {
+    //         console.log("getCode error: ", error);
+    //     }
+    //     // 每隔100秒检查一次
+    //     await new Promise((resolve) => setTimeout(resolve, 100 * 1000));
+    // }
+    // if (code.bytecode.length === 0) {
+    //     let txHash;
+    //     // deploy账户, 循环检查直到成功
+    //     let count = 0;
+    //     while (true) {
+    //         try {
+    //             const deployAccountPayload = {
+    //                 classHash: account.argentXproxyClassHash,
+    //                 constructorCalldata: account.constructorCalldata,
+    //                 contractAddress: account.account.address,
+    //                 addressSalt: account.addressSalt
+    //             };
+    //             const { transaction_hash: AXdAth, contract_address: AXcontractFinalAdress } = await account.account.deployAccount(deployAccountPayload);
+    //             console.log("deployAccount success, txHash: ", AXdAth, ", contract_address: ", AXcontractFinalAdress);
+    //             txHash = AXdAth;
+    //         } catch (error) {
+    //             console.log("deployAccount error: ", error);
+    //             // 等待100秒再次尝试
+    //             count++;
+    //             if (count > 5) {
+    //                 // 如果尝试5次都失败，就退出
+    //                 return;
+    //             }
+    //             await new Promise((resolve) => setTimeout(resolve, 100 * 1000));
+    //             continue;
+    //         }
+    //         if (txHash) {
+    //             await insertAccountData(db, {
+    //                 starknetAddress: account.account.address,
+    //                 deployTxHash: txHash,
+    //             });
+    //             for (let i = 0; i < 5; i++) {
+    //                 try {
+    //                     await provider.waitForTransaction(txHash);
+    //                     break;
+    //                 } catch (error) {
+    //                     console.log("Transaction ", txHash, " failed, check for more details.");
+    //                 }
+    //                 // 随机等待等待2-10分钟，再次查询交易状态
+    //                 await new Promise(resolve => setTimeout(resolve, randomInt(120000, 600000)));
+    //             }
+    //         }
+    //         break;
+    //     }
+    // }
 
-    const shuffledDappAddresses = shuffleArray([...dappsList]);
-    for (const dapp of shuffledDappAddresses) {
-        let balance;
-        while (true) {
-            try {
-                balance = await getBalance(account.account.address, dapps["ETH"]["address"], provider);
-            } catch (error) {
-                console.log("getBalance error: ", error);
-                console.log("getBalance error, waiting for 1 hour...");
-                await new Promise((resolve) => setTimeout(resolve, 1 * 60 * 60 * 1000));
-                continue;
-            }
-            console.log(`Account ${account.account.address} has balance: ${balance} ETH.`);
-            if (BigNumber.from(balance).lt(BigNumber.from("5000000000000000"))) {
-                console.log(`Account ${account.account.address} has no balance, exiting...`);
-                return;
-            }
-            break;
-        }
-        if (BigNumber.from(balance).lt(BigNumber.from("10000000000000000"))) {
-            // 如果余额小于0.01ETH, 则只交互JediSwap
-            console.log(`Account ${account.account.address} has balance less than 0.01ETH, only interact with JediSwap.`);
-            break;
-        }
-        // 随机等待20-60分钟, 防止同时交互
-        await new Promise((resolve) => setTimeout(resolve, randomInt(20 * 60 * 1000, 60 * 60 * 1000)));
-        try {
-            await interactWithDapp(account.account, dapps[dapp], db);
-            console.log(`Account ${account.account.address} interacted with DApp ${dapp} successfully.`);
-        } catch (error) {
-            console.error(`Account ${account.account.address} interaction with DApp ${dapp} failed: `, error);
-        }
-    }
+    // const shuffledDappAddresses = shuffleArray([...dappsList]);
+    // for (const dapp of shuffledDappAddresses) {
+    //     let balance;
+    //     while (true) {
+    //         try {
+    //             balance = await getBalance(account.account.address, dapps["ETH"]["address"], provider);
+    //         } catch (error) {
+    //             console.log("getBalance error: ", error);
+    //             console.log("getBalance error, waiting for 1 hour...");
+    //             await new Promise((resolve) => setTimeout(resolve, 1 * 60 * 60 * 1000));
+    //             continue;
+    //         }
+    //         console.log(`Account ${account.account.address} has balance: ${balance} ETH.`);
+    //         if (BigNumber.from(balance).lt(BigNumber.from("5000000000000000"))) {
+    //             console.log(`Account ${account.account.address} has no balance, exiting...`);
+    //             return;
+    //         }
+    //         break;
+    //     }
+    //     if (BigNumber.from(balance).lt(BigNumber.from("10000000000000000"))) {
+    //         // 如果余额小于0.01ETH, 则只交互JediSwap
+    //         console.log(`Account ${account.account.address} has balance less than 0.01ETH, only interact with JediSwap.`);
+    //         break;
+    //     }
+    //     // 随机等待20-60分钟, 防止同时交互
+    //     await new Promise((resolve) => setTimeout(resolve, randomInt(20 * 60 * 1000, 60 * 60 * 1000)));
+    //     try {
+    //         await interactWithDapp(account.account, dapps[dapp], db);
+    //         console.log(`Account ${account.account.address} interacted with DApp ${dapp} successfully.`);
+    //     } catch (error) {
+    //         console.error(`Account ${account.account.address} interaction with DApp ${dapp} failed: `, error);
+    //     }
+    // }
 
     const continuousDapp = dapps["JediSwap"];
     while (true) {
@@ -345,7 +345,7 @@ async function multiAccountInteraction() {
         for (let i = 0; i < accounts.length; i++) {
             const account = accounts[i];
             // 设置随机10分钟-2小时延时, 并乘以账户索引, 防止同时执行
-            const delay = randomInt(10 * 60 * 1000, 2 * 60 * 60 * 1000) * i;
+            const delay = randomInt(1 * 60 * 1000, 2 * 60 * 1000) * i;
 
             // 创建一个异步任务
             const task = new Promise(async (resolve) => {
