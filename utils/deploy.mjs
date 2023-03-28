@@ -42,6 +42,7 @@ export async function deploy(db, starkAccount, starkRpcProvider) {
                 await new Promise((resolve) => setTimeout(resolve, randomInt(2 * 60 * 1000, 10 * 60 * 1000))); 
             }
         }
+        break;
     }
     return deployTxHash;
 }

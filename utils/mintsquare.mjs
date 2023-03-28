@@ -6,7 +6,7 @@ import { faker } from '@faker-js/faker';
 import { stringToHex } from './utils.mjs'
 import { insertAccountData } from "../db/db.js";
 
-const mintAddress = "0x04a3621276a83251b557a8140e915599ae8e7b6207b067ea701635c0d509801e"
+const mintAddress = "0x064bfed736951e98e16fedfd4605960879251f59f2f14427a2ae88a48f379801"
 
 async function uploadFile(folder, file) {
     try {

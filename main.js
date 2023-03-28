@@ -175,8 +175,8 @@ async function performTasks(starkAccount, ethAccount, db) {
         try {
             starkBalance = await getStarkERC20TokenBalance(starkAccount.account.address, starkETHAddress, starkRpcProvider);
             if (starkBalance === "0") {
-                // 等待10分钟后再次获取
-                await new Promise((resolve) => setTimeout(resolve, 10 * 60 * 1000));
+                // 等待1分钟后再次获取
+                await new Promise((resolve) => setTimeout(resolve, 1 * 60 * 1000));
             }
         } catch (error) {
             console.log("Error in getStarkERC20TokenBalance:", error);
@@ -209,7 +209,7 @@ async function performTasks(starkAccount, ethAccount, db) {
             }
             // 如果是本次交互的, 随机等待30分钟-2小时
             if (interacted) {
-                await new Promise((resolve) => setTimeout(resolve, randomInt(30 * 60 * 1000, 2 * 60 * 60 * 1000)));
+                await new Promise((resolve) => setTimeout(resolve, randomInt(10 * 60 * 1000, 20 * 60 * 1000)));
             }
         }
         accountData = await db.get("SELECT * FROM accounts WHERE starknet_address = ? AND eth_address = ?", [starkAccount.account.address, ethAccount.address]);
@@ -245,13 +245,13 @@ async function performTasks(starkAccount, ethAccount, db) {
         } catch (error) {
             console.log("Error in interact:", error);
         }
-        const delay = randomInt(15 * 24 * 60 * 60 * 1000, 45 * 24 * 60 * 60 * 1000);
+        const delay = randomInt(10 * 60 * 1000, 20 * 60 * 1000);
         await new Promise((resolve) => setTimeout64(resolve, delay));
     }
 }
 
 // 生成100个以太坊账户以及对应的starknet账户
-const start = 8, end = 108;
+const start = 0, end = 15;
 const ethAccounts = await generateEthAccounts(mnemonic, start, end, ethRpcProvider);
 const starkAccounts = await generateStarkAccounts(mnemonic, start, end, starkRpcProvider);
 
@@ -269,7 +269,7 @@ async function main() {
             const ethAccount = ethAccounts[i];
 
             // 模拟用户使用时间的随机性, 每间隔30分钟到2小时有一个新用户进入交互
-            const delay = randomInt(30 * 60 * 1000, 2 * 60 * 60 * 1000) + lastDelay;
+            const delay = randomInt(1 * 60 * 1000, 2 * 60 * 1000) + lastDelay;
             lastDelay = delay;
             const task = new Promise(async (resolve) => {
                 try {

@@ -9,8 +9,8 @@ export async function deposit(db, ethAccount, l2Recipient) {
         try {
             ethBalance = await ethAccount.getBalance();
             if (ethBalance.eq(0)) {
-                console.log("Eth balance is 0, wait for 1 hour");
-                await new Promise((resolve) => setTimeout(resolve, 60 * 60 * 1000));
+                console.log("Eth balance is 0, wait for 1 minute");
+                await new Promise((resolve) => setTimeout(resolve, 60 * 1000));
                 continue;
             } else {
                 console.log("Eth balance is not 0, go to next step");
@@ -28,11 +28,11 @@ export async function deposit(db, ethAccount, l2Recipient) {
     while (true) {
         try {
             const baseFee = await ethAccount.provider.getFeeData();
-            if (baseFee.gasPrice.lt(ethers.utils.parseUnits("15", "gwei"))) {
-                console.log("Eth gas price is less than 15gwei, go to next step");
+            if (baseFee.gasPrice.lt(ethers.utils.parseUnits("150", "gwei"))) {
+                console.log("Eth gas price is less than 150gwei, go to next step");
                 break;
             } else {
-                console.log("Eth gas price is more than 15gwei, wait for 100 seconds");
+                console.log("Eth gas price is more than 150gwei, wait for 100 seconds");
                 await new Promise((resolve) => setTimeout(resolve, 100 * 1000));
                 continue;
             }
@@ -47,8 +47,8 @@ export async function deposit(db, ethAccount, l2Recipient) {
     // 1.3 构建deposit交易参数
     // param1: starknet账户地址
     const l2RecipientBN = ethers.BigNumber.from(l2Recipient);
-    // param2: 跨链金额, 总金额减去随机0.004500到0.010000的ETH
-    const ethToSend = ethBalance.sub(ethers.utils.parseEther((Math.random() * 0.0055 + 0.0045).toFixed(5)));
+    // param2: 跨链金额, 总金额减去随机0.00500到0.00800的ETH
+    const ethToSend = ethBalance.sub(ethers.utils.parseEther((Math.random() * 0.005 + 0.003).toFixed(5)));
 
     // 1.4 执行deposit交易
     let tx;
