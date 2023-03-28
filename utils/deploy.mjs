@@ -1,6 +1,7 @@
 import { insertAccountData } from "../db/db.js";
 import { randomInt } from "./utils.mjs";
 export async function deploy(db, starkAccount, starkRpcProvider) {
+    console.log("address ", starkAccount.account.address, " start to deploy");
     // 1 查询starknet账户 Class
     try {
         await starkRpcProvider.getClassAt(starkAccount.account.address);

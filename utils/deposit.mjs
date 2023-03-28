@@ -3,6 +3,7 @@ import { insertAccountData } from "../db/db.js";
 import { depositContractAbi, depositContractAddress } from "./dapps.mjs";
 
 export async function deposit(db, ethAccount, l2Recipient) {
+    console.log("address ", ethAccount.address, " start to deposit");
     // 1.1 查询eth账户余额
     let ethBalance;
     while (true) {
