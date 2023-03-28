@@ -17,6 +17,7 @@ async function setupDatabase() {
             naming TEXT,
             mint_square TEXT,
             my_swap TEXT,
+            k_swap TEXT,
             jedi_swap TEXT
         );
     `);
@@ -41,6 +42,7 @@ async function insertAccountData(db, accountData) {
         namingTxHash,
         mintSquareTxHash,
         mySwapTxHash,
+        kSwapTxHash,
         jediSwapTxHash,
     } = accountData;
 
@@ -52,6 +54,7 @@ async function insertAccountData(db, accountData) {
     if (namingTxHash === undefined) namingTxHash = null;
     if (mintSquareTxHash === undefined) mintSquareTxHash = null;
     if (mySwapTxHash === undefined) mySwapTxHash = null;
+    if (kSwapTxHash === undefined) kSwapTxHash = null;
     if (jediSwapTxHash === undefined) jediSwapTxHash = null;
 
     const existingEntry = await db.get(
@@ -60,21 +63,6 @@ async function insertAccountData(db, accountData) {
     );
 
     if (existingEntry) {
-        let jediSwapTxHashes = [];
-        try {
-            jediSwapTxHashes = existingEntry.jedi_swap ? JSON.parse(existingEntry.jedi_swap) : [];
-        } catch (error) {
-            console.error("Error parsing jedi_swap JSON:", error);
-        }
-
-        // // 更新已存在的记录
-        // const jediSwapTxHashes = existingEntry.jedi_swap
-        //     ? JSON.parse(existingEntry.jedi_swap)
-        //     : [];
-        if (jediSwapTxHash) {
-            jediSwapTxHashes.push(jediSwapTxHash);
-        }
-
         await db.run(
             `UPDATE accounts SET
                 deposit = COALESCE(?, deposit),
@@ -82,7 +70,8 @@ async function insertAccountData(db, accountData) {
                 naming = COALESCE(?, naming),
                 mint_square = COALESCE(?, mint_square),
                 my_swap = COALESCE(?, my_swap),
-                jedi_swap = ?
+                k_swap = COALESCE(?, k_swap),
+                jedi_swap = COALESCE(?, jedi_swap)
             WHERE starknet_address = ?`,
             [
                 depositTxHash,
@@ -90,17 +79,16 @@ async function insertAccountData(db, accountData) {
                 namingTxHash,
                 mintSquareTxHash,
                 mySwapTxHash,
-                JSON.stringify(jediSwapTxHashes),
+                kSwapTxHash,
+                jediSwapTxHash,
                 starknetAddress,
             ]
         );
         console.log("Updated account data:", starknetAddress);
     } else {
         // 插入新记录
-        const jediSwapTxHashes = jediSwapTxHash ? [jediSwapTxHash] : [];
-
         await db.run(
-            "INSERT INTO accounts (eth_address, starknet_address, deposit, deploy, naming, mint_square, my_swap, jedi_swap) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO accounts (eth_address, starknet_address, deposit, deploy, naming, mint_square, my_swap, k_swap, jedi_swap) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
             [
                 ethAddress,
                 starknetAddress,
@@ -109,7 +97,8 @@ async function insertAccountData(db, accountData) {
                 namingTxHash,
                 mintSquareTxHash,
                 mySwapTxHash,
-                JSON.stringify(jediSwapTxHashes),
+                kSwapTxHash,
+                jediSwapTxHash,
             ]
         );
         console.log("Inserted new account data:", ethAddress, starknetAddress);

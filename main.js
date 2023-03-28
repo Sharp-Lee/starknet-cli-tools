@@ -10,6 +10,7 @@ import { randomInt, shuffleArray, setTimeout64 } from "./utils/utils.mjs";
 import { executeNamingMulticall } from "./utils/buynaming.mjs";
 import { executeJediSwapMulticall } from "./utils/jediswap.mjs";
 import { executeMySwapMulticall } from "./utils/myswap.mjs";
+import { execute10kSwapMulticall } from "./utils/10kswap.mjs";
 import { executeMintSquare } from "./utils/mintsquare.mjs";
 import { setupDatabase, insertAccountData, getAndRemoveFirstImageName } from "./db/db.js";
 import { checkImages } from "./utils/insertImages.mjs";
@@ -114,10 +115,6 @@ async function interact(account, dapp) {
             }
         case "MySwap":
             console.log("address: ", account.address, " interact with MySwap");
-            if (accountData && accountData.my_swap) {
-                db.close();
-                return null;
-            }
             try {
                 // 查询starknet账户的USDT余额
                 balanceUSDT = await getStarkERC20TokenBalance(account.address, starkUSDTAddress, starkRpcProvider);
@@ -170,6 +167,60 @@ async function interact(account, dapp) {
                 console.log("Execute myswap failed:", error);
                 db.close();
                 return;
+            }
+        case "10kSwap":
+            console.log("address: ", account.address, " interact with 10kSwap");
+            try {
+                // 查询starknet账户的USDT余额
+                balanceUSDT = await getStarkERC20TokenBalance(account.address, starkUSDTAddress, starkRpcProvider);
+            } catch (error) {
+                console.log("Get USDT balance failed:", error);
+                db.close();
+                return;
+            }
+            // 如果余额为0
+            if (balanceUSDT === "0") {
+                const min = 10000000000000;
+                const max = 4900000000000000;
+                amountIn = randomInt(min, max);
+                pair_path = { type: 'struct', low: dapps["ETH"]["address"], high: dapps["USDT"]["address"] };
+            } else {
+                // 如果余额小于1000000, 全部swap
+                if (BigNumber.from(balanceUSDT).lt(BigNumber.from("1000000"))) {
+                    amountIn = BigNumber.from(balanceUSDT);
+                } else {
+                    // 如果余额大于1000000, 随机swap
+                    amountIn = BigNumber.from(balanceUSDT).mul(randomInt(1, 9)).div(10);
+                }
+                pair_path = { type: 'struct', low: dapps["USDT"]["address"], high: dapps["ETH"]["address"] };
+            }
+            try {
+                callHash = await execute10kSwapMulticall(account, amountIn, pair_path);
+                if (callHash) {
+                    for (let i = 0; i < 3; i++) {
+                        try {
+                            console.log("Wait for transaction:", callHash);
+                            await starkRpcProvider.waitForTransaction(callHash);
+                            await insertAccountData(db, {
+                                starknetAddress: account.address,
+                                kSwapTxHash: callHash,
+                            });
+                            db.close();
+                            console.log("Execute 10kswap success:", callHash);
+                            return callHash;
+                        } catch (error) {
+                            console.log("Wait for 10kswap transaction failed:", error);
+                        }
+                        // 随机等待1-3分钟, 等待交易确认
+                        await new Promise(resolve => setTimeout(resolve, randomInt(60000, 180000)));
+                    }
+                }
+                db.close();
+                return null;
+            } catch (error) {
+                console.log("Execute 10kswap failed:", error);
+                db.close();
+                return null;
             }
         case "JediSwap":
             console.log("address: ", account.address, " interact with JediSwap");
@@ -286,18 +337,21 @@ async function performTasks(starkAccount, ethAccount) {
         }
     }
     // 4. 删除已mint的图片
-    if (accountData && accountData.mint_square) {
-        try {
-            await getAndRemoveFirstImageName(db);
-        } catch (error) {
-            console.log("Error in getAndRemoveFirstImageName:", error);
-        }
-    }
+    // if (accountData && accountData.mint_square) {
+    //     try {
+    //         await getAndRemoveFirstImageName(db);
+    //     } catch (error) {
+    //         console.log("Error in getAndRemoveFirstImageName:", error);
+    //     }
+    // }
     // 4. 与dapps交互
     // 如果naming, mint_square, my_swap, jedi_swap中有至少一个没有交互过, 则与dapps交互
-    while (!accountData.naming || !accountData.mint_square || !accountData.my_swap || !accountData.jedi_swap) {
+    while (!accountData.naming || !accountData.mint_square || !accountData.my_swap || !accountData.k_swap || !accountData.jedi_swap) {
         const shuffledDappAddresses = shuffleArray([...dappsList]);
         for (const dapp of shuffledDappAddresses) {
+            if ( (dapp["name"] === "MySwap" && accountData.my_swap) || (dapp["name"] === "10kSwap" && accountData.k_swap) || (dapp["name"] === "JediSwap" && accountData.jedi_swap) ) {
+                continue;
+            }
             let interacted = false;
             try {
                 interacted = await interact(starkAccount.account, dapps[dapp]);
@@ -313,9 +367,12 @@ async function performTasks(starkAccount, ethAccount) {
         accountData = await db.get("SELECT * FROM accounts WHERE starknet_address = ? AND eth_address = ?", [starkAccount.account.address, ethAccount.address]);
     }
     db.close();
-    // 5. 长期交互指定的dapp jedi_swap
-    const jediSwapDapp = dapps["JediSwap"];
+    // 5. 长期交互
     while (true) {
+        // 从 jedi_swap my_swap k_swap中随机选择一个dapp
+        const swaps = ["JediSwap", "MySwap", "10kSwap"];
+        const swap = swaps[randomInt(0, swaps.length - 1)]
+        const dapp = dapps[swap];
         // 查询starknet账户的余额
         let starkBalance = "0";
         while (starkBalance === "0") {
@@ -340,7 +397,7 @@ async function performTasks(starkAccount, ethAccount) {
             return;
         }
         try {
-            await interact(starkAccount.account, jediSwapDapp);
+            await interact(starkAccount.account, dapp);
         } catch (error) {
             console.log("Error in interact:", error);
         }
