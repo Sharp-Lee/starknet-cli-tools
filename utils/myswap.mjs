@@ -1,8 +1,7 @@
 import { stark } from "starknet";
 import { dapps } from "./dapps.mjs";
-import { insertAccountData } from "../db/db.js";
 
-export async function executeMySwapMulticall(db, account, amountIn, path) {
+export async function executeMySwapMulticall(account, amountIn, path) {
     const multiCall = await account.execute(
         [
             {
@@ -17,19 +16,16 @@ export async function executeMySwapMulticall(db, account, amountIn, path) {
                 contractAddress: dapps["MySwap"]["address"],
                 entrypoint: "swap",
                 calldata: stark.compileCalldata({
-                    pool_id: "4",
+                    pool_id: "1",
                     token_from_addr: path.low,
                     amount_from: { type: 'struct', low: amountIn.toString(), high: '0' },
                     amount_to_min: { type: 'struct', low: '1', high: '0' },
                 })
             }
         ]
-    )
+    ) 
 
-    await insertAccountData(db, {
-        starknetAddress: account.address,
-        mySwapTxHash: multiCall.transaction_hash,
-    });
-    
+    console.log("address: ", account.address, ", amountIn: ", amountIn.toString(), ", path_in: ", path.low, ", path_out: ", path.high, ", tx_hash: ", multiCall.transaction_hash);
+
     return multiCall.transaction_hash;
 }

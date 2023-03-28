@@ -37,6 +37,6 @@ export const dapps = {
     }
 };
 // 合约ABI（仅包含需要的函数）
-export const depositContractAbi = [{ "inputs": [{ "internalType": "uint256", "name": "l2Recipient", "type": "uint256" }], "name": "deposit", "outputs": [], "stateMutability": "payable", "type": "function" }]
+export const depositContractAbi = [{ "inputs": [{"internalType":"uint256","name":"amount","type":"uint256"},{"internalType":"uint256","name":"l2Recipient","type":"uint256"}],"name":"deposit","outputs":[],"stateMutability":"payable","type":"function"}];
 // 合约地址
 export const depositContractAddress = "0xc3511006C04EF1d78af4C8E0e74Ec18A6E64Ff9e";

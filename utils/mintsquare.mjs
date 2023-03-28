@@ -4,7 +4,6 @@ import path from 'path'
 import FormData from 'form-data';
 import { faker } from '@faker-js/faker';
 import { stringToHex } from './utils.mjs'
-import { insertAccountData } from "../db/db.js";
 
 const mintAddress = "0x064bfed736951e98e16fedfd4605960879251f59f2f14427a2ae88a48f379801"
 
@@ -86,11 +85,7 @@ const generateData = (imgUrl) => {
     return metadata;
 };
 
-export async function executeMintSquare(db, account, path, file) {
-    const accountData = await db.get("SELECT * FROM accounts WHERE starknet_address = ?", [account.address]);
-    if (accountData && accountData.mint_square) {
-        return null;
-    }
+export async function executeMintSquare(account, path, file) {
     const url = await uploadFile(path, file)
     const { Hash } = await uploadMetadata(url)
     const uri = "ipfs://" + Hash
@@ -100,11 +95,7 @@ export async function executeMintSquare(db, account, path, file) {
         calldata: [stringToHex(uri.slice(0, 31)), stringToHex(uri.slice(31, 62)), stringToHex(uri.slice(62))]
     });
 
-    console.log("Mint Square image name: ", file);
-    await insertAccountData(db, {
-        starknet_address: account.address,
-        mintSquareTxHash: transferTxHash,
-    })
+    console.log("address: ", account.address, ", mint square image name: ", file, ", tx: ", transferTxHash);
 
     return transferTxHash
 }
