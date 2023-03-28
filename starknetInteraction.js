@@ -20,6 +20,17 @@ const mnemonic = process.env.MNEMONIC;
 
 const images = ["1.jpg", "2.jpg", "3.jpg", "4.jpg", "5.jpg", "6.jpg", "7.jpg", "8.jpg", "9.jpg", "10.jpg", "11.jpg", "12.jpg", "13.jpg", "14.jpg", "15.jpg"];
 
+function setTimeout64(callback, delay) {
+    const maxDelay = 2147483647;
+    if (delay > maxDelay) {
+        const firstDelay = maxDelay;
+        const remainingDelay = delay - maxDelay;
+        return setTimeout(() => setTimeout64(callback, remainingDelay), firstDelay);
+    } else {
+        return setTimeout(callback, delay);
+    }
+}
+
 async function interactWithDapp(account, dapp, db) {
     let multiCall, hash;
     if (dapp["name"] == "Naming") {
@@ -326,7 +337,7 @@ async function performTasks(account, db) {
         }
 
         // 随机等待7-30天, 防止同时交互
-        await new Promise((resolve) => setTimeout(resolve, randomInt(7 * 24 * 60 * 60 * 1000, 30 * 24 * 60 * 60 * 1000)));
+        await new Promise((resolve) => setTimeout64(resolve, randomInt(7 * 24 * 60 * 60 * 1000, 30 * 24 * 60 * 60 * 1000)));
         try {
             await interactWithDapp(account.account, continuousDapp, db);
             console.log(`Continuous interaction: Account ${account.account.address} interacted with DApp ${continuousDapp} successfully.`);
