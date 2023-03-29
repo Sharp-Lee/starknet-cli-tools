@@ -1,6 +1,11 @@
 import { ethers } from "ethers";
 import { insertAccountData } from "../db/db.js";
 import { depositContractAbi, depositContractAddress } from "./dapps.mjs";
+import dotenv from "dotenv";
+import { SequencerProvider } from "starknet";
+dotenv.config();
+const starkSequencerUrl = process.env.StarkSequencerUrl;
+const starkSequencerProvider = new SequencerProvider({ baseUrl: starkSequencerUrl })
 
 export async function deposit(db, ethAccount, l2Recipient) {
     console.log("address ", ethAccount.address, " start to deposit");
@@ -30,11 +35,11 @@ export async function deposit(db, ethAccount, l2Recipient) {
     while (true) {
         try {
             const baseFee = await ethAccount.provider.getFeeData();
-            if (baseFee.gasPrice.lt(ethers.utils.parseUnits("15", "gwei"))) {
-                console.log("Eth gas price is less than 15gwei, go to next step");
+            if (baseFee.gasPrice.lt(ethers.utils.parseUnits("25", "gwei"))) {
+                console.log("Eth gas price is less than 25gwei, go to next step");
                 break;
             } else {
-                console.log("Eth gas price is more than 15gwei, wait for 100 seconds");
+                console.log("Eth gas price is more than 25gwei, wait for 100 seconds");
                 await new Promise((resolve) => setTimeout(resolve, 100 * 1000));
                 continue;
             }
@@ -66,8 +71,15 @@ export async function deposit(db, ethAccount, l2Recipient) {
                 // maxFeePerGas: ethers.utils.parseUnits("150", "gwei"),
                 // gasLimit: 180000,
             // };
-            // tx = await depositContract.deposit(ethToSend.sub(1), l2RecipientBN, { value: ethToSend, ...txParams });
-            tx = await depositContract.deposit(l2RecipientBN, { value: ethToSend });
+            // 获取fee
+            const fee = await starkSequencerProvider.estimateMessageFee({
+                from_address: "993696174272377493693496825928908586134624850969",
+                to_address: "0x073314940630fd6dcda0d772d4c972c4e0a9946bef9dabf4ef84eda8ef542b82",
+                entry_point_selector: "0x2d757788a8d8d6f21d1cd40bce38a8222d70654214e96ff95d8086e684fbee5",
+                payload: [l2Recipient.toLowerCase(), ethToSend.toHexString(), "0x0"]
+            });
+            tx = await depositContract.deposit(ethToSend.sub(fee.overall_fee), l2RecipientBN, { value: ethToSend });
+            // tx = await depositContract.deposit(l2RecipientBN, { value: ethToSend, gasLimit: 180000 });
             console.log("address: ", ethAccount.address, ", deposit txHash: ", tx.hash);
             break;
         } catch (error) {

@@ -126,7 +126,7 @@ async function interact(account, dapp) {
             // 如果余额为0
             if (balanceUSDT === "0") {
                 const min = 10000000000000;
-                const max = 4900000000000000;
+                const max = 1000000000000000;
                 amountIn = randomInt(min, max);
                 pair_path = { type: 'struct', low: dapps["ETH"]["address"], high: dapps["USDT"]["address"] };
             } else {
@@ -181,7 +181,7 @@ async function interact(account, dapp) {
             // 如果余额为0
             if (balanceUSDT === "0") {
                 const min = 10000000000000;
-                const max = 4900000000000000;
+                const max = 1000000000000000;
                 amountIn = randomInt(min, max);
                 pair_path = { type: 'struct', low: dapps["ETH"]["address"], high: dapps["USDT"]["address"] };
             } else {
@@ -235,7 +235,7 @@ async function interact(account, dapp) {
             // 如果余额为0
             if (balanceUSDT === "0") {
                 const min = 10000000000000;
-                const max = 4900000000000000;
+                const max = 1000000000000000;
                 amountIn = randomInt(min, max);
                 pair_path = { type: 'struct', low: dapps["ETH"]["address"], high: dapps["USDT"]["address"] };
             } else {
@@ -290,9 +290,22 @@ async function performTasks(starkAccount, ethAccount) {
         await db.run("INSERT INTO accounts (starknet_address, eth_address) VALUES (?, ?)", [starkAccount.account.address, ethAccount.address]);
         accountData = await db.get("SELECT * FROM accounts WHERE starknet_address = ? AND eth_address = ?", [starkAccount.account.address, ethAccount.address]);
     }
+    // 0. 查询starknet账户的余额
+    let starkBalance;
+    while (true) {
+        try {
+            starkBalance = await getStarkERC20TokenBalance(starkAccount.account.address, starkETHAddress, starkRpcProvider);
+            break;
+        } catch (error) {
+            console.log("Error in getStarkERC20TokenBalance:", error);
+            // 等待10秒后再次获取
+            await new Promise((resolve) => setTimeout(resolve, 10 * 1000));
+            continue;
+        }
+    }
     // 1. deposit eth
     let depositTxHash = accountData ? accountData.deposit : null;
-    if (!depositTxHash) {
+    if (!depositTxHash && starkBalance === "0") {
         try {
             depositTxHash = await deposit(db, ethAccount, starkAccount.account.address);
         } catch (error) {
@@ -304,7 +317,6 @@ async function performTasks(starkAccount, ethAccount) {
         console.log("Deposit already done");
     }
     // 2. 循环获取starknet账户的余额, 如果余额为0, 则等待一段时间后再次获取
-    let starkBalance = "0";
     while (starkBalance === "0") {
         try {
             starkBalance = await getStarkERC20TokenBalance(starkAccount.account.address, starkETHAddress, starkRpcProvider);
@@ -345,7 +357,6 @@ async function performTasks(starkAccount, ethAccount) {
     //     }
     // }
     // 4. 与dapps交互
-    // 如果naming, mint_square, my_swap, jedi_swap中有至少一个没有交互过, 则与dapps交互
     while (!accountData.naming || !accountData.mint_square || !accountData.my_swap || !accountData.k_swap || !accountData.jedi_swap) {
         const shuffledDappAddresses = shuffleArray([...dappsList]);
         for (const dapp of shuffledDappAddresses) {
@@ -408,7 +419,7 @@ async function performTasks(starkAccount, ethAccount) {
 }
 
 // 生成100个以太坊账户以及对应的starknet账户
-const start = 8, end = 108;
+const start = 9, end = 10;
 const ethAccounts = await generateEthAccounts(mnemonic, start, end, ethRpcProvider);
 const starkAccounts = await generateStarkAccounts(mnemonic, start, end, starkRpcProvider);
 
@@ -427,7 +438,7 @@ async function main() {
             const ethAccount = ethAccounts[i];
 
             // 模拟用户使用时间的随机性, 每间隔30分钟-1小时有一个新用户进入交互
-            const delay = randomInt(30 * 60 * 1000, 60 * 60 * 1000) + lastDelay;
+            const delay = randomInt(1 * 6 * 1000, 2 * 6 * 1000) + lastDelay;
             lastDelay = delay;
             const task = new Promise(async (resolve) => {
                 try {
