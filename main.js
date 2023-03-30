@@ -36,16 +36,15 @@ const ethRpcProvider = new ethers.providers.JsonRpcProvider(ethRpcUrl);
 
 
 // 交互函数
-async function interact(account, dapp) {
+async function interact(db, account, dapp) {
     let callHash, balanceUSDT, amountIn, pair_path;
-    const db = await setupDatabase();
     let accountData = await db.get("SELECT * FROM accounts WHERE starknet_address = ?", [account.address]);
     switch (dapp["name"]) {
         case "Naming":
             console.log("address: ", account.address, " interact with Naming");
             try {
                 if (accountData && accountData.naming) {
-                    db.close();
+                    
                     return null;
                 }
                 callHash = await executeNamingMulticall(account);
@@ -58,7 +57,7 @@ async function interact(account, dapp) {
                                 starknetAddress: account.address,
                                 namingTxHash: callHash,
                             });
-                            db.close();
+                            
                             console.log("address:", account.address, "Execute naiming success:", callHash);
                             return callHash;
                         } catch (error) {
@@ -68,19 +67,19 @@ async function interact(account, dapp) {
                         await new Promise(resolve => setTimeout(resolve, randomInt(60000, 180000)));
                     }
                 }
-                db.close();
+                
                 console.log("address:", account.address, "Execute naiming failed:", callHash);
                 return null;
             } catch (error) {
                 console.log("Execute naiming failed:", error);
-                db.close();
+                
                 return;
             }
         case "MintSquare":
             console.log("address: ", account.address, " interact with MintSquare");
             try {
                 if (accountData && accountData.mint_square) {
-                    db.close();
+                    
                     return null;
                 }
                 const imagePath = path.join(".", "images");
@@ -95,7 +94,7 @@ async function interact(account, dapp) {
                                 starknetAddress: account.address,
                                 mintSquareTxHash: callHash,
                             })
-                            db.close();
+                            
                             console.log("address:", account.address, "Execute mintsquare success:", callHash);
                             return callHash;
                         } catch (error) {
@@ -105,11 +104,11 @@ async function interact(account, dapp) {
                         await new Promise(resolve => setTimeout(resolve, randomInt(60000, 180000)));
                     }
                 }
-                db.close();
+                
                 console.log("address:", account.address, "Execute mintsquare failed:", callHash);
                 return null;
             } catch (error) {
-                db.close();
+                
                 console.log("Execute mintsquare failed:", error);
                 return;
             }
@@ -120,7 +119,7 @@ async function interact(account, dapp) {
                 balanceUSDT = await getStarkERC20TokenBalance(account.address, starkUSDTAddress, starkRpcProvider);
             } catch (error) {
                 console.log("Get USDT balance failed:", error);
-                db.close();
+                
                 return;
             }
             // 如果余额为0
@@ -150,7 +149,7 @@ async function interact(account, dapp) {
                                 starknetAddress: account.address,
                                 mySwapTxHash: callHash,
                             });
-                            db.close();
+                            
                             console.log("address:", account.address, "Execute myswap success:", callHash);
                             return callHash;
                         } catch (error) {
@@ -160,12 +159,12 @@ async function interact(account, dapp) {
                         await new Promise(resolve => setTimeout(resolve, randomInt(60000, 180000)));
                     }
                 }
-                db.close();
+                
                 console.log("address:", account.address, "Execute myswap failed:", callHash);
                 return null;
             } catch (error) {
                 console.log("Execute myswap failed:", error);
-                db.close();
+                
                 return;
             }
         case "10kSwap":
@@ -175,7 +174,7 @@ async function interact(account, dapp) {
                 balanceUSDT = await getStarkERC20TokenBalance(account.address, starkUSDTAddress, starkRpcProvider);
             } catch (error) {
                 console.log("Get USDT balance failed:", error);
-                db.close();
+                
                 return;
             }
             // 如果余额为0
@@ -205,7 +204,7 @@ async function interact(account, dapp) {
                                 starknetAddress: account.address,
                                 kSwapTxHash: callHash,
                             });
-                            db.close();
+                            
                             console.log("Execute 10kswap success:", callHash);
                             return callHash;
                         } catch (error) {
@@ -215,11 +214,11 @@ async function interact(account, dapp) {
                         await new Promise(resolve => setTimeout(resolve, randomInt(60000, 180000)));
                     }
                 }
-                db.close();
+                
                 return null;
             } catch (error) {
                 console.log("Execute 10kswap failed:", error);
-                db.close();
+                
                 return null;
             }
         case "JediSwap":
@@ -229,7 +228,7 @@ async function interact(account, dapp) {
                 balanceUSDT = await getStarkERC20TokenBalance(account.address, starkUSDTAddress, starkRpcProvider);
             } catch (error) {
                 console.log("Get USDT balance failed:", error);
-                db.close();
+                
                 return;
             }
             // 如果余额为0
@@ -259,7 +258,7 @@ async function interact(account, dapp) {
                                 starknetAddress: account.address,
                                 jediSwapTxHash: callHash,
                             });
-                            db.close();
+                            
                             console.log("Execute jediswap success:", callHash);
                             return callHash;
                         } catch (error) {
@@ -269,11 +268,11 @@ async function interact(account, dapp) {
                         await new Promise(resolve => setTimeout(resolve, randomInt(60000, 180000)));
                     }
                 }
-                db.close();
+                
                 return null;
             } catch (error) {
                 console.log("Execute jediswap failed:", error);
-                db.close();
+                
                 return;
             }
         default:
@@ -310,7 +309,7 @@ async function performTasks(starkAccount, ethAccount) {
             depositTxHash = await deposit(db, ethAccount, starkAccount.account.address);
         } catch (error) {
             console.log("Error in deposit:", error);
-            db.close();
+            
             return;
         }
     } else {
@@ -339,12 +338,12 @@ async function performTasks(starkAccount, ethAccount) {
             deployTxHash = await deploy(db, starkAccount, starkRpcProvider);
             if (deployTxHash === 2) {
                 console.log("Deploy failed, stark address: ", starkAccount.account.address);
-                db.close();
+                
                 return;
             }
         } catch (error) {
             console.log("Error in deploy:", error);
-            db.close();
+            
             return;
         }
     }
@@ -356,6 +355,7 @@ async function performTasks(starkAccount, ethAccount) {
     //         console.log("Error in getAndRemoveFirstImageName:", error);
     //     }
     // }
+    
     // 4. 与dapps交互
     while (!accountData.naming || !accountData.mint_square || !accountData.my_swap || !accountData.k_swap || !accountData.jedi_swap) {
         const shuffledDappAddresses = shuffleArray([...dappsList]);
@@ -365,7 +365,7 @@ async function performTasks(starkAccount, ethAccount) {
             }
             let interacted = false;
             try {
-                interacted = await interact(starkAccount.account, dapps[dapp]);
+                interacted = await interact(db, starkAccount.account, dapps[dapp]);
             } catch (error) {
                 console.log("Error in interact:", error);
                 continue;
@@ -377,13 +377,22 @@ async function performTasks(starkAccount, ethAccount) {
         }
         accountData = await db.get("SELECT * FROM accounts WHERE starknet_address = ? AND eth_address = ?", [starkAccount.account.address, ethAccount.address]);
     }
-    db.close();
     // 5. 长期交互
     while (true) {
+        console.log("address: ", starkAccount.account.address, "start long term interaction");
         // 从 jedi_swap my_swap k_swap中随机选择一个dapp
         const swaps = ["JediSwap", "MySwap", "10kSwap"];
         const swap = swaps[randomInt(0, swaps.length - 1)]
         const dapp = dapps[swap];
+
+        // 使用setTimeout64随机等待1-15天, 再次交互
+        const delay = randomInt(3 * 24 * 60 * 60 * 1000, 15 * 24 * 60 * 60 * 1000);
+        // 打印等待时间
+        const date = new Date();
+        date.setTime(date.getTime() + delay);
+        console.log("Stark address: ", starkAccount.account.address, " wait for ", date.toLocaleString());
+        await new Promise((resolve) => setTimeout64(resolve, delay));
+
         // 查询starknet账户的余额
         let starkBalance = "0";
         while (starkBalance === "0") {
@@ -408,18 +417,15 @@ async function performTasks(starkAccount, ethAccount) {
             return;
         }
         try {
-            await interact(starkAccount.account, dapp);
+            await interact(db, starkAccount.account, dapp);
         } catch (error) {
             console.log("Error in interact:", error);
         }
-        // 使用setTimeout64随机等待15-45天, 再次交互
-        const delay = randomInt(15 * 24 * 60 * 60 * 1000, 45 * 24 * 60 * 60 * 1000);
-        await new Promise((resolve) => setTimeout64(resolve, delay));
     }
 }
 
 // 生成100个以太坊账户以及对应的starknet账户
-const start = 9, end = 10;
+const start = 8, end = 108;
 const ethAccounts = await generateEthAccounts(mnemonic, start, end, ethRpcProvider);
 const starkAccounts = await generateStarkAccounts(mnemonic, start, end, starkRpcProvider);
 
@@ -438,7 +444,12 @@ async function main() {
             const ethAccount = ethAccounts[i];
 
             // 模拟用户使用时间的随机性, 每间隔30分钟-1小时有一个新用户进入交互
-            const delay = randomInt(1 * 6 * 1000, 2 * 6 * 1000) + lastDelay;
+            let delay;
+            if (i < 33) {
+                delay = randomInt(1 * 60 * 1000, 3 * 60 * 1000) + lastDelay;
+            } else {
+                delay = randomInt(30 * 60 * 1000, 60 * 60 * 1000) + lastDelay;
+            }
             lastDelay = delay;
             const task = new Promise(async (resolve) => {
                 try {
